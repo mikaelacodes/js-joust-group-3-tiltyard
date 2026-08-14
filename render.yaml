@@ -1,0 +1,15 @@
+# Render Blueprint — one free web service that serves the client AND the WebSocket.
+# Push to GitHub, then in Render: New > Blueprint, point it at this repo.
+services:
+  - type: web
+    name: js-joust
+    runtime: node
+    plan: free
+    # Install all workspaces, then build the client into client/dist.
+    buildCommand: npm install && npm run build
+    # Start the Node server, which serves client/dist and hosts /ws.
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

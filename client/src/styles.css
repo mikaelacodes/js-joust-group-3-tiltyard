@@ -361,6 +361,21 @@ label {
 .mute-btn:active {
   transform: scale(0.92);
 }
+/* Player controller flips to alarm colors on the slow "freeze" phase. */
+.controller.freeze .ctrl-title {
+  color: var(--pink);
+}
+.controller.freeze .pulse-ring {
+  border-color: var(--pink);
+}
+.controller.freeze::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 120px rgba(255, 61, 122, 0.35);
+  z-index: 1;
+}
 
 .stage-main {
   position: relative;

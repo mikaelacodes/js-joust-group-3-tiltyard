@@ -3,17 +3,18 @@ import {
   msg,
   TICK_MS,
   COUNTDOWN_MS,
-  RAMP_SECONDS,
-  WOBBLE_AMPLITUDE,
-  WOBBLE_SECONDS,
+  ROUND_ESCALATE_SECONDS,
+  OSC_HZ,
+  TEMPO_FLOOR,
   PLAYER_COLORS,
-  intensityToBpm,
-  intensityToAllowedMagnitude,
-  intensityToPhase,
+  tempoToBpm,
+  tempoToAllowedMagnitude,
+  tempoToPhase,
   MIN_PLAYERS_TO_START,
 } from "@joust/shared";
 
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
+const lerp = (a, b, t) => a + (b - a) * t;
 
 /**
  * @typedef {"lobby" | "countdown" | "playing" | "ended"} RoomPhase
@@ -41,6 +42,8 @@ export class Room {
     /** @type {NodeJS.Timeout | null} */
     this.countdownTimer = null;
     this.roundStartedAt = 0;
+    /** Accumulated angle of the tempo oscillation (radians). */
+    this.tempoPhase = 0;
     /** Running counter so torch colors stay stable per player. */
     this.colorCounter = 0;
   }
@@ -113,24 +116,33 @@ export class Room {
   beginPlaying() {
     this.phase = "playing";
     this.roundStartedAt = Date.now();
+    this.tempoPhase = 0;
     this.broadcast(msg(S2C.GAME_STARTED));
     this.tickTimer = setInterval(() => this.tick(), TICK_MS);
     this.tick(); // send an immediate first frame
   }
 
-  /** Advance intensity and broadcast tempo/sensitivity/phase. */
+  /** Oscillate the tempo and broadcast tempo/sensitivity/phase. */
   tick() {
     const t = (Date.now() - this.roundStartedAt) / 1000;
-    const base = clamp01(t / RAMP_SECONDS);
-    // Wobble fades out as we approach full intensity so the ending stays brutal.
-    const wobble = Math.sin((t / WOBBLE_SECONDS) * Math.PI * 2) * WOBBLE_AMPLITUDE;
-    const intensity = clamp01(base + wobble * (1 - base));
+    // How far the round has escalated (0 gentle -> 1 full chaos).
+    const escalation = clamp01(t / ROUND_ESCALATE_SECONDS);
 
-    const bpm = intensityToBpm(intensity);
-    const allowedMagnitude = intensityToAllowedMagnitude(intensity);
-    const phase = intensityToPhase(intensity);
+    // Advance the oscillator; it speeds up as the round escalates so freezes
+    // arrive faster and with less warning.
+    const hz = lerp(OSC_HZ.START, OSC_HZ.END, escalation);
+    this.tempoPhase += 2 * Math.PI * hz * (TICK_MS / 1000);
+    const swing = (Math.sin(this.tempoPhase) + 1) / 2; // 0 slow -> 1 fast
 
-    this.broadcast(msg(S2C.TEMPO, { intensity, bpm, allowedMagnitude, phase }));
+    // The slow trough drops toward dead-slow as the round escalates.
+    const floor = lerp(TEMPO_FLOOR.START, TEMPO_FLOOR.END, escalation);
+    const tempo = clamp01(lerp(floor, 1, swing));
+
+    const bpm = tempoToBpm(tempo);
+    const allowedMagnitude = tempoToAllowedMagnitude(tempo);
+    const phase = tempoToPhase(tempo);
+
+    this.broadcast(msg(S2C.TEMPO, { tempo, bpm, allowedMagnitude, phase }));
   }
 
   /** A player self-reported that their motion exceeded the limit. */

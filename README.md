@@ -4,10 +4,13 @@ A browser-based take on **Johann Sebastian Joust** — a phone-motion party
 elimination game with a neon "attract mode" skin. No app to install: everyone
 plays in their phone's browser.
 
-**How it plays:** a round escalates through phases — **Warm-Up → Danger →
-Sudden Death**. As the tempo (BPM) climbs, the amount of movement you're allowed
-shrinks. Jerk your phone too hard for the current beat and you're out. Last
-knight standing wins.
+**How it plays:** the music's tempo rises and falls, and how much you can move
+tracks it. When the beat is **slow**, your torch is razor-sensitive — freeze.
+When it **speeds up**, you're free to lunge and dash at rivals to nudge their
+hand. Move too much for the *current* beat and you're out. As the round wears on,
+the slow troughs get slower and arrive more often, so rounds resolve. Last knight
+standing wins. Phases follow the tempo: **Hold Still** (slow) → **Skirmish**
+(mid) → **Charge!** (fast).
 
 ## Two roles, one app
 

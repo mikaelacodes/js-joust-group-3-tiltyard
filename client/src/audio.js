@@ -1,14 +1,14 @@
 /**
  * Tempo-locked soundtrack for the TILTYARD conductor screen.
  *
- * The server owns the tempo and broadcasts the current BPM/intensity; this
+ * The server owns the tempo and broadcasts the current BPM + tempo level; this
  * synth stays locked to it. Everything is generated with the Web Audio API —
  * no audio assets to ship — using the classic look-ahead scheduler so beats
- * land on sample-accurate times even as the BPM ramps up.
+ * land on sample-accurate times even as the BPM swings.
  *
- * The arrangement escalates with the round: a warm-up pulse thickens into a
- * driving kick + bass, then a frantic hat + arpeggio for Sudden Death, so the
- * music mirrors the on-screen phase.
+ * The arrangement tracks the tempo: a slow freeze is a sparse, tense pulse; a
+ * fast charge thickens into a driving kick + bass with a frantic hat + arp — so
+ * the music mirrors the on-screen phase.
  *
  * Only the conductor plays audio (players are on phones, muted spectators of
  * the beat). Browser autoplay policy requires a user gesture to start audio,
@@ -35,7 +35,7 @@ export class Soundtrack {
     this.muted = false;
 
     this.bpm = 66;
-    this.intensity = 0;
+    this.energy = 0; // 0 = slow/sparse, 1 = fast/busy (tracks server tempo)
 
     this._step = 0; // 16th-note step, 0..15 within a bar
     this._nextNoteTime = 0; // audio-clock time of the next 16th
@@ -92,10 +92,10 @@ export class Soundtrack {
     }
   }
 
-  /** Update the target tempo/intensity broadcast by the server. */
-  setTempo(bpm, intensity) {
+  /** Update the target BPM + tempo level (0..1) broadcast by the server. */
+  setTempo(bpm, energy) {
     if (typeof bpm === "number") this.bpm = bpm;
-    if (typeof intensity === "number") this.intensity = intensity;
+    if (typeof energy === "number") this.energy = energy;
   }
 
   /** Toggle audible output without stopping the beat. Returns the new state. */
@@ -126,7 +126,7 @@ export class Soundtrack {
 
   /** Voice one 16th-note step of the arrangement. */
   _scheduleStep(step, time) {
-    const i = this.intensity;
+    const i = this.energy;
     const onBeat = step % 4 === 0; // quarter notes
     const onEighth = step % 2 === 0;
 
@@ -138,7 +138,7 @@ export class Soundtrack {
     if (i > 0.35 && onEighth) this._hat(time, i > 0.75 ? 0.5 : 0.35);
     if (i > 0.78 && !onEighth) this._hat(time, 0.28);
 
-    // Bass: root pulse under the kick, thicker as intensity climbs.
+    // Bass: root pulse under the kick, thicker as the tempo climbs.
     if (onBeat || (i > 0.5 && onEighth)) {
       this._bass(time, semi(step % 8 === 4 && i > 0.6 ? 3 : 0));
     }
@@ -189,7 +189,7 @@ export class Soundtrack {
     osc.frequency.value = freq / 2; // an octave below the arp root
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 400 + this.intensity * 900;
+    lp.frequency.value = 400 + this.energy * 900;
     g.gain.setValueAtTime(0.0001, time);
     g.gain.linearRampToValueAtTime(0.28, time + 0.01);
     g.gain.exponentialRampToValueAtTime(0.001, time + 0.16);

@@ -34,7 +34,8 @@ export const S2C = {
   GAME_STARTING: "game_starting",
   /** Round is live. `{}` */
   GAME_STARTED: "game_started",
-  /** Periodic broadcast during play. `{ intensity, bpm, allowedMagnitude, phase }` */
+  /** Periodic broadcast during play. `{ tempo, bpm, allowedMagnitude, phase }`
+   *  `tempo` is 0..1 (0 = slow/sensitive, 1 = fast/free). */
   TEMPO: "tempo",
   /** A player was eliminated. `{ playerId }` */
   PLAYER_ELIMINATED: "player_eliminated",

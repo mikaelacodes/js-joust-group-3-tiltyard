@@ -25,7 +25,7 @@ const BRAND = `<div class="brand-mark">
 const BLOBS = `<div class="blobs"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>`;
 
 const TICKER =
-  "⚡ MOVE TOO MUCH FOR THE BEAT AND YOU'RE OUT ⚡ SUDDEN DEATH HITS 172 BPM — CAN YOU KEEP UP? ⚡ LAST KNIGHT STANDING WINS ⚡";
+  "⚡ SLOW BEAT? FREEZE. FAST BEAT? CHARGE. ⚡ MOVE TOO MUCH WHILE IT'S SLOW AND YOU'RE OUT ⚡ LAST KNIGHT STANDING WINS ⚡";
 
 const state = {
   role: null, // "conductor" | "player"
@@ -34,7 +34,7 @@ const state = {
   isHost: false,
   players: [],
   phase: "home", // home | lobby | countdown | playing | ended
-  intensity: 0,
+  tempo: 0, // 0 = slow/sensitive, 1 = fast/free
   bpm: 66,
   allowedMagnitude: Infinity,
   phaseInfo: { name: "Warm-Up", className: "", caption: "", hint: "" },
@@ -104,16 +104,16 @@ function wireHandlers() {
     render();
     if (state.role === "player") startPlayerLoop();
     // Both the conductor screen and every player's phone play the beat.
-    soundtrack.setTempo(state.bpm, state.intensity);
+    soundtrack.setTempo(state.bpm, state.tempo);
     soundtrack.start();
   });
 
   net.on(S2C.TEMPO, (d) => {
-    state.intensity = d.intensity;
+    state.tempo = d.tempo;
     state.bpm = d.bpm;
     state.allowedMagnitude = d.allowedMagnitude;
     state.phaseInfo = d.phase;
-    soundtrack.setTempo(d.bpm, d.intensity);
+    soundtrack.setTempo(d.bpm, d.tempo);
     if (state.phase === "playing") {
       if (state.role === "conductor") updateConductorUI();
       else updatePlayerTempo();
@@ -418,7 +418,7 @@ function renderPlayerCountdown() {
   app.innerHTML = playerShell(`
     <div class="screen center">
       <h2 class="anton" style="font-size:2.6rem;margin:0;color:var(--cyan)">Get ready</h2>
-      <p class="hint">Hold your phone flat and still. The beat starts slow.</p>
+      <p class="hint">Slow beat = freeze. Fast beat = charge. Watch the tempo.</p>
     </div>`);
 }
 
@@ -430,7 +430,7 @@ function renderPlayerPlaying() {
       <div class="ctrl-content">
         <div class="ctrl-topline">
           <span class="ctrl-eyebrow">${esc(mine?.name ?? "You")} · in play</span>
-          <h2 class="ctrl-title">Stay Still</h2>
+          <h2 class="ctrl-title" id="ctrlTitle">${esc(state.phaseInfo?.name ?? "Get Ready")}</h2>
         </div>
         <div class="ctrl-center">
           <div class="pulse-wrap" style="--beat:${beatSeconds()}s">
@@ -438,9 +438,8 @@ function renderPlayerPlaying() {
             <div class="pulse-ring r2"></div>
             <div class="pulse-core" id="pulseCore"><div class="dot"></div></div>
           </div>
-          <div class="ctrl-tempo"><span id="ctrlPhase">${esc(state.phaseInfo?.name ?? "Warm-Up")}</span>
-            · <span id="ctrlBpm">${state.bpm}</span> BPM</div>
-          <p class="ctrl-hint">The beat sets the limit. Move too much and you're out — no takebacks.</p>
+          <div class="ctrl-tempo"><span id="ctrlBpm">${state.bpm}</span> BPM</div>
+          <p class="ctrl-hint">Slow beat: freeze. Fast beat: lunge. Move too much for the beat and you're out.</p>
         </div>
         <div class="ctrl-out">
           <p class="out-big">You're Out</p>
@@ -461,10 +460,13 @@ function updatePlayerTempo() {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
   };
-  set("ctrlPhase", state.phaseInfo?.name ?? "");
+  set("ctrlTitle", state.phaseInfo?.name ?? "");
   set("ctrlBpm", String(state.bpm));
   const wrap = document.querySelector(".pulse-wrap");
   if (wrap) wrap.style.setProperty("--beat", `${beatSeconds()}s`);
+  // Tint the controller for the danger (slow/freeze) phase.
+  const root = document.getElementById("ctrl-root");
+  if (root) root.classList.toggle("freeze", state.phaseInfo?.id === "freeze");
 }
 
 function renderPlayerEnded() {

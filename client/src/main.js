@@ -1,6 +1,7 @@
 import { C2S, S2C, MIN_PLAYERS_TO_START } from "@joust/shared";
 import { net } from "./net.js";
 import { motion } from "./motion.js";
+import { soundtrack } from "./audio.js";
 import { qrSvg, joinUrl } from "./qr.js";
 import "./styles.css";
 
@@ -102,6 +103,10 @@ function wireHandlers() {
     state.playStartedAt = Date.now();
     render();
     if (state.role === "player") startPlayerLoop();
+    if (state.role === "conductor") {
+      soundtrack.setTempo(state.bpm, state.intensity);
+      soundtrack.start();
+    }
   });
 
   net.on(S2C.TEMPO, (d) => {
@@ -109,6 +114,7 @@ function wireHandlers() {
     state.bpm = d.bpm;
     state.allowedMagnitude = d.allowedMagnitude;
     state.phaseInfo = d.phase;
+    if (state.role === "conductor") soundtrack.setTempo(d.bpm, d.intensity);
     if (state.phase === "playing") {
       if (state.role === "conductor") updateConductorUI();
       else updatePlayerTempo();
@@ -127,6 +133,7 @@ function wireHandlers() {
     state.winnerName = d.winnerName;
     state.winnerColor = d.winnerColor;
     stopPlayerLoop();
+    soundtrack.stop();
     render();
   });
 
@@ -137,12 +144,14 @@ function wireHandlers() {
     state.winnerColor = null;
     state.eliminatedSelf = false;
     stopPlayerLoop();
+    soundtrack.stop();
     render();
   });
 
   net.on(S2C.ROOM_CLOSED, () => {
     state.phase = "home";
     state.error = "The room was closed.";
+    soundtrack.stop();
     render();
   });
 }
@@ -279,7 +288,12 @@ function renderAttract() {
     </div>`;
 
   const startBtn = document.getElementById("startBtn");
-  if (startBtn) startBtn.onclick = () => net.send(C2S.START_GAME);
+  if (startBtn)
+    startBtn.onclick = () => {
+      // Unlock audio here: browsers only allow sound to start from a gesture.
+      soundtrack.unlock();
+      net.send(C2S.START_GAME);
+    };
 }
 
 function renderConductorPlaying() {
@@ -287,7 +301,12 @@ function renderConductorPlaying() {
   app.innerHTML = `
     <div class="stage ${state.phaseInfo?.className ?? ""}" id="stage">
       ${BLOBS}
-      <div class="stage-top">${BRAND}<div class="pill">Live</div></div>
+      <div class="stage-top">${BRAND}<div class="stage-top-right">
+        <button class="mute-btn" id="muteBtn" title="Mute music" aria-label="Mute music">${
+          soundtrack.muted ? "🔇" : "🔊"
+        }</button>
+        <div class="pill">Live</div>
+      </div></div>
       <div class="stage-main">
         <p class="phase-name" id="phaseName">${esc(state.phaseInfo?.name ?? "Warm-Up")}</p>
         <p class="phase-caption" id="phaseCaption">${esc(state.phaseInfo?.caption ?? "")}</p>
@@ -306,6 +325,14 @@ function renderConductorPlaying() {
         <span id="phaseHint">${esc(state.phaseInfo?.hint ?? "")}</span>
       </div>
     </div>`;
+
+  const muteBtn = document.getElementById("muteBtn");
+  if (muteBtn)
+    muteBtn.onclick = () => {
+      const muted = soundtrack.toggleMute();
+      muteBtn.textContent = muted ? "🔇" : "🔊";
+      muteBtn.title = muted ? "Unmute music" : "Mute music";
+    };
 }
 
 /** In-place update of the conductor during play (no full re-render). */
@@ -357,7 +384,11 @@ function renderConductorEnded() {
       </div>
     </div>`;
   const againBtn = document.getElementById("againBtn");
-  if (againBtn) againBtn.onclick = () => net.send(C2S.PLAY_AGAIN);
+  if (againBtn)
+    againBtn.onclick = () => {
+      soundtrack.unlock();
+      net.send(C2S.PLAY_AGAIN);
+    };
 }
 
 // ---- Player (phone controller) -------------------------------------------

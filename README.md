@@ -76,7 +76,10 @@ See [`shared/src/protocol.js`](shared/src/protocol.js) for payloads.
 
 ## Ideas / TODO
 
-- Real music playback on the conductor, tempo-locked to the broadcast BPM.
+- ~~Real music playback on the conductor, tempo-locked to the broadcast BPM.~~
+  Done — a synthesized soundtrack ([`client/src/audio.js`](client/src/audio.js))
+  locks to the broadcast BPM and escalates with each phase. Mute it from the
+  conductor screen.
 - Reconnect handling (a dropped socket currently just leaves the room).
 - Per-phone sensitivity calibration (different sensors read differently).
 - Split `client/src/main.js` into `screens/*.js` as it grows.

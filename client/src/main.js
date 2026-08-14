@@ -103,10 +103,9 @@ function wireHandlers() {
     state.playStartedAt = Date.now();
     render();
     if (state.role === "player") startPlayerLoop();
-    if (state.role === "conductor") {
-      soundtrack.setTempo(state.bpm, state.intensity);
-      soundtrack.start();
-    }
+    // Both the conductor screen and every player's phone play the beat.
+    soundtrack.setTempo(state.bpm, state.intensity);
+    soundtrack.start();
   });
 
   net.on(S2C.TEMPO, (d) => {
@@ -114,7 +113,7 @@ function wireHandlers() {
     state.bpm = d.bpm;
     state.allowedMagnitude = d.allowedMagnitude;
     state.phaseInfo = d.phase;
-    if (state.role === "conductor") soundtrack.setTempo(d.bpm, d.intensity);
+    soundtrack.setTempo(d.bpm, d.intensity);
     if (state.phase === "playing") {
       if (state.role === "conductor") updateConductorUI();
       else updatePlayerTempo();
@@ -235,7 +234,9 @@ function renderHome() {
   document.getElementById("join").onclick = async () => {
     const name = document.getElementById("name").value.trim();
     const code = document.getElementById("code").value.trim();
-    // Requesting motion permission needs a user gesture (iOS) — do it now.
+    // This tap is the player's one gesture — use it to unlock audio (so the
+    // beat can play on the phone) and to grant motion permission (iOS 13+).
+    soundtrack.unlock();
     await motion.requestPermission();
     net.send(C2S.JOIN_ROOM, { code, name });
   };
